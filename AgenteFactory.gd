@@ -1,42 +1,54 @@
 extends RefCounted
-# Responsável por criar instâncias de Agente, calcular suas rotas
-# e armazenar métricas de desempenho.
+# Responsável por criar instâncias de Agente, calcular suas rotas, 
+# aplicar Decorators e armazenar métricas de desempenho.
 
-const Agente = preload("res://Agente.gd") # Certifique-se de que o caminho está correto
-const No = preload("res://No.gd") # Certifique-se de que o caminho está correto
+# Preloads corrigidos
+const Agente = preload("res://Agente.gd") 
+const No = preload("res://No.gd") 
 const PontoCaminho = preload("res://PontoCaminho.gd")
+const GridManager = preload("res://GridManager.gd")
+const NeighborFinder = preload("res://NeighborFinder.gd") # Importa a interface do Adapter
+const LoggingDecorator = preload("res://LoggingDecorator.gd") 
 
 var agente_contador: int = 0
-var grid_instancia: Node2D # Referência ao script principal (GridAStar.gd) para acesso ao grid e A*
+var grid_instancia: Node2D # Referência à cena principal (para redraw)
+var grid_manager: GridManager 
+var neighbor_finder: NeighborFinder # O Adapter (pode ser Retangular ou Horizontal/Vertical)
 
-func _init(grid_ref: Node2D):
+func _init(grid_ref: Node2D, manager: GridManager, finder: NeighborFinder):
 	grid_instancia = grid_ref
+	grid_manager = manager
+	neighbor_finder = finder
 	
-# Método Factory principal atualizado para aceitar PontoCaminho
-func criar_agente(origem_ponto: PontoCaminho, destino_ponto: PontoCaminho, tamanho_celula: int, dados_custo_computacional: Array) -> Agente:
+# O método A* é chamado a partir da cena principal, que usa o Adaptador atual.
+func criar_agente(origem_ponto: PontoCaminho, destino_ponto: PontoCaminho, dados_custo_computacional: Array) -> Agente:
 	
-	# Obtém as coordenadas atuais dos Pontos de Caminho (importante para destinos dinâmicos)
 	var origem: Vector2i = origem_ponto.get_posicao_atual()
 	var destino: Vector2i = destino_ponto.get_posicao_atual()
 	
 	var caminho_encontrado: Array = []
 	var tempo_gasto_ms: float = 0.0
 
-	# 1. Medir o tempo de cálculo da rota usando o método A* do grid_instancia
+	# 1. Medir o tempo de cálculo da rota usando o Adapter atual
 	var tempo_inicio = Time.get_ticks_usec()
-	caminho_encontrado = grid_instancia.encontrar_caminho_para(origem, destino)
+	# Passa o 'neighbor_finder' atual para o A*
+	caminho_encontrado = grid_instancia.encontrar_caminho_para(origem, destino, neighbor_finder)
 	var tempo_fim = Time.get_ticks_usec()
-	tempo_gasto_ms = (tempo_fim - tempo_inicio) / 1000.0 # Tempo em milissegundos
+	tempo_gasto_ms = (tempo_fim - tempo_inicio) / 1000.0 
 	
 	if caminho_encontrado.is_empty():
-		return null # Rota falhou, não cria o agente
+		return null 
 
-	# 2. Incrementa o ID e cria o Agente
+	# 2. Cria o Agente COMPONENTE
 	agente_contador += 1
-	var novo_agente = Agente.new(origem, agente_contador, tamanho_celula)
+	var novo_agente = Agente.new(origem, agente_contador, grid_manager.tamanho_celula)
 	novo_agente.set_caminho(caminho_encontrado)
 	
-	# 3. Armazena os dados de desempenho (passado como referência)
+	# 3. Aplica o DECORATOR
+	# Nota: Se o LoggingDecorator não for encontrado, ele causará erro aqui.
+	var agente_decorado = LoggingDecorator.new(novo_agente)
+	
+	# 4. Armazena os dados de desempenho
 	var dados_do_teste = {
 		"agente_id": agente_contador,
 		"tempo_ms": tempo_gasto_ms,
@@ -50,4 +62,4 @@ func criar_agente(origem_ponto: PontoCaminho, destino_ponto: PontoCaminho, taman
 	print("Agente #%d criado (O: %s -> D: %s). Rota com %d passos. Tempo: %.2fms" % 
 		[agente_contador, origem, destino, caminho_encontrado.size(), tempo_gasto_ms])
 		
-	return novo_agente
+	return agente_decorado # Retorna o Agente Decorado
