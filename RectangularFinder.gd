@@ -1,31 +1,28 @@
 extends NeighborFinder
+class_name RectangularFinder
 
-# Constantes de direção para 8 vizinhos (incluindo diagonais)
-const DIRECTIONS: Array[Vector2i] = [
-	Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0), # H/V
-	Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)  # Diagonais
-]
+const GridManager = preload("res://GridManager.gd")
+var grid_manager: GridManager
 
-# Método principal do Adapter: encontra todos os vizinhos (inclui H/V e Diagonais)
-func get_neighbors(coord: Vector2i) -> Array:
-	var vizinhos: Array = []
-	
-	for dir in DIRECTIONS:
-		var vizinho_coord: Vector2i = coord + dir
-		
-		# USANDO O SINGLETON/GRIDMANAGER CORRETAMENTE
-		# 1. Verifica se a coordenada está dentro dos limites do grid (CORREÇÃO)
-		if grid_manager.is_valid_coord(vizinho_coord):
-			# 2. Verifica se a célula não é um obstáculo
-			if grid_manager.get_estado_celula(vizinho_coord) == GridManager.ESTADO_LIVRE:
-				vizinhos.append(vizinho_coord)
-				
-	return vizinhos
+func _init(manager: GridManager):
+	grid_manager = manager
 
-# Retorna o custo de movimento
-func get_movement_cost(from_coord: Vector2i, to_coord: Vector2i) -> float:
-	# Verifica se o movimento é diagonal
-	if abs(from_coord.x - to_coord.x) == 1 and abs(from_coord.y - to_coord.y) == 1:
-		return 1.414 # Custo para diagonal (sqrt(2))
-	else:
-		return 1.0 # Custo para Horizontal/Vertical
+func get_neighbors(coord: Vector2i) -> Array[Vector2i]:
+	var neighbors: Array[Vector2i] = []
+	for x in range(-1, 2):
+		for y in range(-1, 2):
+			if x == 0 and y == 0:
+				continue
+			
+			var neighbor_coord = Vector2i(coord.x + x, coord.y + y)
+			
+			if grid_manager.is_valid_coord(neighbor_coord) and grid_manager.get_estado_celula(neighbor_coord) == GridManager.ESTADO_LIVRE:
+				neighbors.append(neighbor_coord)
+	return neighbors
+
+func get_movement_cost(from: Vector2i, to: Vector2i) -> float:
+	if from.x != to.x and from.y != to.y:
+		# Movimento diagonal (sqrt(2) approx 1.414)
+		return 1.414
+	# Movimento horizontal ou vertical
+	return 1.0

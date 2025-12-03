@@ -1,13 +1,9 @@
 extends Agente
 class_name AgenteDecorator
 
-# O Decorator deve conter uma referência ao componente que está decorando.
-# Esta referência NÃO DEVE ser declarada como "Agente" para evitar o conflito de nome.
 var componente_decorado: Agente
 
-# O _init aqui agora se alinha melhor com a Godot
 func _init(agente_componente: Agente):
-	# O construtor da classe base (Agente) é chamado automaticamente.
 	
 	# Armazena a referência ao componente
 	self.componente_decorado = agente_componente

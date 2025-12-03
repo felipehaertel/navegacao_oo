@@ -1,25 +1,35 @@
-extends AgenteDecorator
+extends RefCounted
 class_name LoggingDecorator
 
-# A classe base AgenteDecorator já resolve a herança de Agente,
-# então não precisamos de preloads aqui.
+const Agente = preload("res://Agente.gd")
 
-func _init(agente_componente: Agente):
-	# Chamada obrigatória para o construtor da classe base (AgenteDecorator).
-	# Isso inicializa 'self.componente_decorado'
-	super._init(agente_componente)
+# Implementa a interface do Agente (Duck Typing)
+var component: Agente
+var dados_custo_computacional: Array 
 
-func mover(delta: float):
-	# Usa a propriedade renomeada 'componente_decorado' da classe base AgenteDecorator
-	var movimento_anterior = componente_decorado.posicao_grid
+func _init(agente: Agente, dados: Array):
+	component = agente
+	dados_custo_computacional = dados
 	
-	# Chama o método original do componente (delega através do AgenteDecorator base)
-	var em_movimento = super.mover(delta) 
+	# Armazena os dados iniciais do planejamento (A*), decorando o Agente
+	component.id = component.id # Garante que o ID está no Decorator
 	
-	if em_movimento and componente_decorado.posicao_grid != movimento_anterior:
-		# Log extra para cada movimento de célula
-		print("[LOG/DECORATOR] Agente #%d movendo de %s para %s" % [componente_decorado.id, movimento_anterior, componente_decorado.posicao_grid])
-	elif not em_movimento and not componente_decorado.caminho_a_seguir.is_empty():
-		print("[LOG/DECORATOR] Agente #%d PAROU no destino: %s" % [componente_decorado.id, componente_decorado.posicao_grid])
-		
-	return em_movimento
+	var distancia_euclidiana = component.origem.distance_to(component.destino)
+	
+	# Armazena a métrica de custo computacional/geometria inicial
+	dados_custo_computacional.append({
+		"agente_id": component.id,
+		"tempo_ms": Time.get_ticks_msec(), # Placeholder: deve ser preenchido após o A* real
+		"passos": component.caminho_a_seguir.size(),
+		"distancia": distancia_euclidiana,
+		"origem": component.origem,
+		"destino": component.destino
+	})
+
+# Encaminha chamadas importantes para o Agente (Componente)
+# No caso do Command Pattern, o Agente real é passado como Receiver,
+# então o Decorator foca principalmente na coleta de dados (logging).
+
+# Getter para o Agente (importante para o GridAStar acessar as propriedades)
+func get_component() -> Agente:
+	return component

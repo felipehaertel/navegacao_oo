@@ -1,14 +1,12 @@
-extends PontoCaminhoFactory
+extends RefCounted
 class_name EstaticoFactory
 
-const OrigemEstatica = preload("res://OrigemEstatica.gd")
-const DestinoEstatico = preload("res://DestinoEstatico.gd")
+const PontoCaminho = preload("res://PontoCaminho.gd")
 
-func _init():
-	super._init("EstaticoFactory")
-	
-func criar_origem(coord: Vector2i) -> PontoCaminho:
-	return OrigemEstatica.new(coord, factory_id)
+func criar_origem(pos: Vector2i) -> PontoCaminho:
+	print("Factory: Criando Ponto de Origem em ", pos)
+	return PontoCaminho.new(pos)
 
-func criar_destino(coord: Vector2i) -> PontoCaminho:
-	return DestinoEstatico.new(coord, factory_id)
+func criar_destino(pos: Vector2i) -> PontoCaminho:
+	print("Factory: Criando Ponto de Destino em ", pos)
+	return PontoCaminho.new(pos)

@@ -1,41 +1,31 @@
 extends RefCounted
 class_name GridManager
 
-const ESTADO_LIVRE: int = 0
-const ESTADO_OCUPADO: int = 1
+const ESTADO_LIVRE = 0
+const ESTADO_OCUPADO = 1
 
-var grid: Array = [] 
+var grid_data: Dictionary = {}
 var num_celulas_x: int = 0
 var num_celulas_y: int = 0
-var tamanho_celula: int = 64
+var tamanho_celula: int = 0
 
-# Método de inicialização que popula o grid
-func inicializar_grid(x: int, y: int, cel_size: int):
+func initialize_grid(x: int, y: int, c_size: int):
 	num_celulas_x = x
 	num_celulas_y = y
-	tamanho_celula = cel_size
+	tamanho_celula = c_size
 	
-	grid.clear()
-	for row_y in range(num_celulas_y):
-		var linha: Array = []
-		for col_x in range(num_celulas_x):
-			linha.append(ESTADO_LIVRE) 
-		grid.append(linha)
+	for i in range(x):
+		for j in range(y):
+			grid_data[Vector2i(i, j)] = ESTADO_LIVRE
 
-# --- NOVO MÉTODO (NECESSÁRIO PELO ADAPTER) ---
-# Verifica se as coordenadas estão dentro dos limites do grid.
-func is_valid_coord(coord: Vector2i) -> bool:
-	return coord.x >= 0 and coord.x < num_celulas_x and \
-		   coord.y >= 0 and coord.y < num_celulas_y
-
-# Métodos de acesso para desacoplar a cena dos dados
 func get_estado_celula(coord: Vector2i) -> int:
-	# O Adapter (Finder) deve usar is_valid_coord antes de chamar esta função, 
-	# mas esta checagem garante que não haja erro de índice se chamada diretamente.
-	if not is_valid_coord(coord):
-		return -1 # Fora dos limites
-	return grid[coord.y][coord.x]
+	if grid_data.has(coord):
+		return grid_data[coord]
+	return ESTADO_OCUPADO 
 
 func set_estado_celula(coord: Vector2i, estado: int):
-	if is_valid_coord(coord):
-		grid[coord.y][coord.x] = estado
+	if grid_data.has(coord):
+		grid_data[coord] = estado
+
+func is_valid_coord(coord: Vector2i) -> bool:
+	return coord.x >= 0 and coord.x < num_celulas_x and coord.y >= 0 and coord.y < num_celulas_y

@@ -1,65 +1,49 @@
 extends RefCounted
-# Responsável por criar instâncias de Agente, calcular suas rotas, 
-# aplicar Decorators e armazenar métricas de desempenho.
+class_name AgenteFactory
 
-# Preloads corrigidos
-const Agente = preload("res://Agente.gd") 
-const No = preload("res://No.gd") 
-const PontoCaminho = preload("res://PontoCaminho.gd")
+# Importa as classes
+const Agente = preload("res://Agente.gd")
+const LoggingDecorator = preload("res://LoggingDecorator.gd")
+const Observer = preload("res://Observer.gd")
 const GridManager = preload("res://GridManager.gd")
-const NeighborFinder = preload("res://NeighborFinder.gd") # Importa a interface do Adapter
-const LoggingDecorator = preload("res://LoggingDecorator.gd") 
+const NeighborFinder = preload("res://NeighborFinder.gd")
+const PontoCaminho = preload("res://PontoCaminho.gd")
 
-var agente_contador: int = 0
-var grid_instancia: Node2D # Referência à cena principal (para redraw)
-var grid_manager: GridManager 
-var neighbor_finder: NeighborFinder # O Adapter (pode ser Retangular ou Horizontal/Vertical)
+var parent_node: Node2D
+var grid_manager: GridManager
+var neighbor_finder: NeighborFinder # Adapter
+var observer: Observer # Observer para ciclo de vida
+var next_agent_id: int = 1
 
-func _init(grid_ref: Node2D, manager: GridManager, finder: NeighborFinder):
-	grid_instancia = grid_ref
+func _init(parent: Node2D, manager: GridManager, finder: NeighborFinder, obs: Observer):
+	parent_node = parent
 	grid_manager = manager
 	neighbor_finder = finder
-	
-# O método A* é chamado a partir da cena principal, que usa o Adaptador atual.
-func criar_agente(origem_ponto: PontoCaminho, destino_ponto: PontoCaminho, dados_custo_computacional: Array) -> Agente:
-	
-	var origem: Vector2i = origem_ponto.get_posicao_atual()
-	var destino: Vector2i = destino_ponto.get_posicao_atual()
-	
-	var caminho_encontrado: Array = []
-	var tempo_gasto_ms: float = 0.0
+	observer = obs
 
-	# 1. Medir o tempo de cálculo da rota usando o Adapter atual
-	var tempo_inicio = Time.get_ticks_usec()
-	# Passa o 'neighbor_finder' atual para o A*
-	caminho_encontrado = grid_instancia.encontrar_caminho_para(origem, destino, neighbor_finder)
-	var tempo_fim = Time.get_ticks_usec()
-	tempo_gasto_ms = (tempo_fim - tempo_inicio) / 1000.0 
+func criar_agente(origem_ponto: PontoCaminho, destino_ponto: PontoCaminho, dados_custo_computacional: Array) -> LoggingDecorator:
 	
-	if caminho_encontrado.is_empty():
-		return null 
+	# Chamada para o método A* no GridAStar (parent_node)
+	var caminho = parent_node.find_path_for_agent(origem_ponto.get_posicao_atual(), destino_ponto.get_posicao_atual(), neighbor_finder)
+	
+	if caminho.is_empty():
+		return null
 
-	# 2. Cria o Agente COMPONENTE
-	agente_contador += 1
-	var novo_agente = Agente.new(origem, agente_contador, grid_manager.tamanho_celula)
-	novo_agente.set_caminho(caminho_encontrado)
+	var novo_agente = Agente.new(
+		next_agent_id, 
+		origem_ponto.get_posicao_atual(), 
+		destino_ponto.get_posicao_atual(), 
+		caminho, 
+		grid_manager, 
+		grid_manager.tamanho_celula
+	)
+	next_agent_id += 1
 	
-	# 3. Aplica o DECORATOR
-	# Nota: Se o LoggingDecorator não for encontrado, ele causará erro aqui.
-	var agente_decorado = LoggingDecorator.new(novo_agente)
+	# 1. OBSERVER: Anexa o Observer de ciclo de vida
+	# O Agente é o Subject
+	novo_agente.attach(observer)
 	
-	# 4. Armazena os dados de desempenho
-	var dados_do_teste = {
-		"agente_id": agente_contador,
-		"tempo_ms": tempo_gasto_ms,
-		"passos": caminho_encontrado.size(),
-		"distancia": origem.distance_to(destino),
-		"origem": origem,
-		"destino": destino
-	}
-	dados_custo_computacional.append(dados_do_teste)
+	# 2. DECORATOR: Envolve o Agente com o Decorator de Logging
+	var agente_decorado = LoggingDecorator.new(novo_agente, dados_custo_computacional)
 	
-	print("Agente #%d criado (O: %s -> D: %s). Rota com %d passos. Tempo: %.2fms" % 
-		[agente_contador, origem, destino, caminho_encontrado.size(), tempo_gasto_ms])
-		
-	return agente_decorado # Retorna o Agente Decorado
+	return agente_decorado
